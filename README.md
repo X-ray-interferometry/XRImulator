@@ -1,5 +1,7 @@
 # XRImulator2
 
+# Erik Bootsma
+
 This code is a work in progress end-to-end simulator for a single spacecraft X-ray interferometer. It is an open access, object oriented, python code consisting of four modules and an additional script for executing the desired functions of the simulator. This is a new, corrected, improved and expanded version of the same simulator made by Emily van Hese, which can be found in the following repository: https://github.com/EmilyvHese/XRImulator
 
 Starting with the first ‘end’, the astrophysical source. It is sampled in the Image module (image.py), to generate photons.
