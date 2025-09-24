@@ -22,7 +22,7 @@ class detector():
 
     def __init__(self, res_E, res_t, res_pos, E_range, pos_range,
                  pos_noise = 0., energy_noise = 0., t_noise = 0.,
-                 quant_eff = r"Models\Detector QE\Si_9p5_um_transmission_data.txt",
+                 quant_eff = r"Models/Detector QE/Si_9p5_um_transmission_data.txt",
                  response_matrix = None):
         """ 
         This function is the main function that takes the 'real' photons at the camera and
@@ -310,7 +310,7 @@ class baseline():
         #     warnings.warn("Warning: missing information to check the length restrictions!")
 
     def add_custom_detector(self, res_E, res_t, res_pos, E_range, pos_range, pos_noise = 0., E_noise = 0., t_noise = 0., 
-                            quant_eff = r"CModels\Detector QE\Si_9p5_um_transmission_data.txt",
+                            quant_eff = r"CModels/Detector QE/Si_9p5_um_transmission_data.txt",
                             response_matrix = None):
         """ Allows for defining a custom detector.
         

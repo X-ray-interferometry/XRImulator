@@ -27,7 +27,7 @@ class interferometer_data():
     def __init__(self, instrument, image, eff_area_show = False, pure_diffraction = False, pure_fringes = False):
         """ 
         This function is the main function that takes an image and converts it to instrument data as
-        if the instrument had just observed the object te image is a representation of. 
+        if the instrument had just observed the object the image is a representation of. 
         It models the individual photons coming in each timestep, at what detector they end up, 
         whether they are absorbed along the way, how much noise there is, and also whether the 
         spacecraft the instrument is on wobbles, and possible correction for this.
@@ -182,7 +182,7 @@ class interferometer_data():
         y_pos (array of floats) = positions to calculate the fresnel diffraction value at.
         """
 
-        # see Willingale (2004) for the definations of the dimensionless coordinate u,
+        # see Willingale (2004) for the definitions of the dimensionless coordinate u,
         # used for the Fresnel integrals
         u_0 = baseline.W * np.sqrt(2 / (wavelength * baseline.L))
         u_1 = lambda u, u_0: u - u_0/2

@@ -65,7 +65,7 @@ def plot_ft(ft_x_data, ft_y_data, plot_obj, log=0, num= 0):
     if log == 2:
         plot_obj.loglog(ft.fftshift(ft_x_data), (ft.fftshift(ft_y_data)), label=f'Baseline {num}') 
 
-def image_recon_smooth(data, instrument, fov, samples = 512, progress = 0, error = 0.001, recon_type = "IFFT"):
+def image_recon_smooth(data, instrument, fov, samples = np.array([512, 512]), progress = 0, error = 0.1, recon_type = "IFFT"):
     """
     This function is to be used to reconstruct images from interferometer data.
     Bins input data based on roll angle, which is important to fill out the uv-plane that will be fed into 
@@ -76,7 +76,7 @@ def image_recon_smooth(data, instrument, fov, samples = 512, progress = 0, error
         instrument (interferometer class object): The interferometer used to record the aforementioned data.
         samples (int): N for the NxN matrix that is the uv-plane used for the 2d inverse fourier transform. TODO: outdated
         progress (1 or 0): whether, or not respectively, to show progess of image reconstruction calculations.
-        TODO: add fov argument, unknown at this time; largest axis size in as
+        TODO: add fov argument, unknown at this time; largest axis size in arcsec
         
     Returns:
         array, array, array: Three arrays, first of which is the reconstructed image, 
@@ -108,14 +108,14 @@ def image_recon_smooth(data, instrument, fov, samples = 512, progress = 0, error
             fft_freqs = np.fft.fftfreq(n, d)
 
             # find closest frequency grid point in numpy.fft.fftfreq of the real sampled frequencies,
-            # deviding over frequency bin width: Delta f = 1 / (n * d)
+            # dividing by frequency bin width: Delta f = 1 / (n * d)
             u_conv = np.around(uv[:,0] * (n * d)).astype(int)
             v_conv = np.around(uv[:,1] * (n * d)).astype(int)
-
+            uv_conv = np.array([u_conv, v_conv]).T
             # create nxn matrix, fourier space image
-            image = np.zeros((fft_freqs.size, fft_freqs.size), dtype = np.singlecomplex)#complex)#np.zeros((fft_freqs_u.size, fft_freqs_v.size), dtype = complex)#np.zeros(samples, dtype = complex)
+            image = np.zeros((fft_freqs.size, fft_freqs.size), dtype = np.complex64)#complex)#np.zeros((fft_freqs_u.size, fft_freqs_v.size), dtype = complex)#np.zeros(samples, dtype = complex)
 
-            # add all fourier values to the corresponing frequency coordinate as per numpy.fft.fftfreq
+            # add all fourier values to the corresponding frequency coordinate as per numpy.fft.fftfreq
             np.add.at(image, (u_conv, v_conv), f_values)
 
             fft_image = np.fft.ifft2(image)
@@ -141,7 +141,7 @@ def image_recon_smooth(data, instrument, fov, samples = 512, progress = 0, error
             if y_upper_bound >= fft_image.shape[0]:
                 y_upper_bound = fft_image.shape[0] - 1
 
-            return fft_image[np.ix_(np.arange(x_lower_bound, x_upper_bound, 1), np.arange(y_lower_bound, y_upper_bound, 1))], (samples.max() * (1e6 * 3600 * 360 / (2 * np.pi)) * (d * n))
+            return (fft_image[np.ix_(np.arange(x_lower_bound, x_upper_bound, 1), np.arange(y_lower_bound, y_upper_bound, 1))], (samples.max() * (1e6 * 3600 * 360 / (2 * np.pi)) * (d * n))), image, uv_conv, fft_freqs
 
         else:
 
@@ -229,14 +229,20 @@ def image_recon_smooth(data, instrument, fov, samples = 512, progress = 0, error
 
         # Calculating value of the fourier transform for the current frequency and bin
         f_value = np.exp(-2j * np.pi * fourier_freq * data_bin_roll)
-        
+
         # Doing the same with the negative frequency
         f_values = np.append(f_values, np.ravel([f_value, np.conjugate(f_value)], "F"))
 
     # reshaping the uv coordinate matrix
     uv = np.array(uv).reshape(-1, 2)
 
-    return inverse_fourier(f_values, uv, fov, error, instrument, E_data, recon_type), uv
+    # create image from IFT
+    img, ft_img, uv_conv, fft_freqs = inverse_fourier(f_values, uv, fov, error, instrument, E_data, recon_type)
+
+    # store results in a reconstruction_data object
+    data_obj = reconstruction_data(img, ft_img, f_values, uv, uv_conv, fft_freqs if recon_type == "IFFT" else None)
+
+    return img, uv, data_obj
 
 
 def periodogram(data, detector, location_data, mono_energetic = True):
@@ -252,6 +258,7 @@ def periodogram(data, detector, location_data, mono_energetic = True):
         loc_spectrum = stingray.Lightcurve(centres, np.histogram(location_data, edges)[0])
         pow_pectrum = stingray.Powerspectrum(loc_spectrum)#, norm = "rms")
 
+        plt.figure(figsize=(8, 4))
         plt.plot(pow_pectrum.freq * 1e-6, pow_pectrum.power)
         plt.title(r"Periodogram of photon locations")
         plt.xlabel(r"Spatial frequency ($1/\mu m$)")
@@ -269,11 +276,11 @@ def periodogram(data, detector, location_data, mono_energetic = True):
             loc_spectrum = stingray.Lightcurve(centres[same_energy], np.histogram(location_data[same_energy], edges[same_energy]))
             pow_pectrum = stingray.Powerspectrum(loc_spectrum)#, norm = "rms")
 
-            plt.plot(pow_pectrum.freq * 1e-6, pow_pectrum.power)
-            plt.title("Periodogram of photon locations with an energy of {} J".format(energy))
+            plt.plot(pow_pectrum.freq * 1e-6, pow_pectrum.power, label="Energy: {} keV".format(energy))
+            plt.legend(loc="upper right")
+            # plt.title("Periodogram of photon locations with an energy of {} J".format(energy))
             plt.xlabel(r"Spatial frequency ($1/\mu m$)")
             plt.ylabel(r"Amplitude")
-            plt.show()
 
     return
 
@@ -286,3 +293,18 @@ def image_compare(source_image, recon_image):
     # return np.sum(np.power((recon_image / np.mean(recon_image)) - (source_image / np.mean(source_image)), 2))
     # return np.sum(np.power(((recon_image - np.min(recon_image)) / np.max(recon_image)) - ((source_image - np.min(source_image)) / np.max(source_image)), 2))
     return np.sum(np.power(((recon_image - np.min(recon_image)) / (np.max(recon_image) - np.min(recon_image))) - ((source_image - np.min(source_image)) / (np.max(source_image) - np.min(source_image))), 2))
+
+class reconstruction_data:
+    """
+    This class is to be used to store the data that is used for the image reconstruction.
+    It contains the image, the fourier transform of the image, and the uv coordinates of the fourier transform.
+    """
+
+    def __init__(self, image, ft_image, f_values, uv, uv_conv, fft_freqs = None):
+
+        self.image = image
+        self.ft_image = ft_image
+        self.f_values = f_values
+        self.uv = uv
+        self.uv_conv = uv_conv
+        self.fft_freqs = fft_freqs
